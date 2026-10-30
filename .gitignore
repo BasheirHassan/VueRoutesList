@@ -1,0 +1,12 @@
+.gradle/
+build/
+out/
+.idea/
+*.iml
+.kotlin/
+.intellijPlatform/
+local.properties
+
+# Demo app artifacts
+examples/**/node_modules/
+examples/**/dist/

@@ -1,0 +1,33 @@
+<idea-plugin>
+    <id>com.veuroutes.plugin</id>
+    <name>Vue Routes</name>
+    <vendor>VeuRoutes</vendor>
+
+    <description><![CDATA[
+    <p>See every Vue Router route in your project at a glance.</p>
+    <p>Vue Routes scans JavaScript and TypeScript router configuration files, flattens nested
+    <code>children</code>, resolves lazy component imports, and displays the result in a searchable
+    tool window. Type or paste a route path (<code>/dashboard/employees</code>), a full URL, a route
+    name, or a component name; results are ranked by relevance, with exact paths first. Double-click
+    a route to jump to its definition, or open its Vue component directly. Right-click a route to
+    open the layout component declared by its closest parent route.</p>
+    <p>Supports Vue Router 4 (<code>createRouter</code>), Vue Router 3 (<code>new VueRouter</code>),
+    typed <code>RouteRecordRaw[]</code> arrays, named and lazy component imports, tsconfig/jsconfig
+    path aliases, and the conventional <code>@/</code> and <code>~/</code> aliases.</p>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow
+            id="Vue Routes"
+            anchor="right"
+            icon="/icons/vueRoutes.svg"
+            factoryClass="com.veuroutes.ui.VueRoutesToolWindowFactory"/>
+
+        <applicationConfigurable
+            parentId="tools"
+            id="com.veuroutes.settings"
+            instance="com.veuroutes.settings.VueRoutesConfigurable"/>
+    </extensions>
+</idea-plugin>
