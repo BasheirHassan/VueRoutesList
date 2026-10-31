@@ -1,6 +1,6 @@
-# Vue Routes — إضافة WebStorm
+# Vue Routes List — إضافة WebStorm
 
-إضافة (Plugin) لـ WebStorm تعرض **كل مسارات Vue Router** الموجودة في المشروع داخل نافذة أداة واحدة، مع بحث فوري، والتنقل إلى تعريف المسار أو إلى مكوّن Vue المرتبط به.
+إضافة (Plugin) **Vue Routes List** لـ WebStorm تعرض **كل مسارات Vue Router** الموجودة في المشروع داخل نافذة أداة واحدة، مع بحث فوري، والتنقل إلى تعريف المسار أو إلى مكوّن Vue المرتبط به.
 
 > الإضافة مكتوبة بلغة Kotlin على IntelliJ Platform، ولا تحتاج إلى أي إعداد خاص داخل مشروع Vue. تكتشف ملفات التوجيه تلقائيًا.
 
@@ -104,7 +104,7 @@
 - ملف التثبيت الناتج:
 
 ```
-build/distributions/VueRoutes-1.2.2.zip
+build/distributions/VueRoutesList-1.3.0.zip
 ```
 
 ### 2. تثبيت الملف في WebStorm
@@ -112,13 +112,13 @@ build/distributions/VueRoutes-1.2.2.zip
 1. افتح **Settings / Preferences → Plugins**.
 2. اضغط علامة الترس ⚙ بجانب **Installed**.
 3. اختر **Install Plugin from Disk...**.
-4. اختر ملف `VueRoutes-1.2.2.zip`.
+4. اختر ملف `VueRoutesList-1.3.0.zip`.
 5. أعد تشغيل WebStorm.
 
 ### 3. الاستخدام
 
 1. افتح مشروع Vue يحتوي على `vue-router`.
-2. من القائمة: **View → Tool Windows → Vue Routes**.
+2. من القائمة: **View → Tool Windows → Vue Routes List**.
 3. ستظهر جميع المسارات في الجدول. اكتب في حقل البحث اسمًا أو مسارًا كاملًا مثل `/dashboard/employees`.
 
 ---
@@ -143,7 +143,7 @@ build/distributions/VueRoutes-1.2.2.zip
 
 ## الإعدادات
 
-**Settings → Tools → Vue Routes**
+**Settings → Tools → Vue Routes List**
 
 - **Auto refresh**: إعادة الفحص تلقائيًا بعد تعديل ملفات التوجيه `.js`/`.ts`، أو إضافة/حذف ملفات `.vue`، أو تغيير إعدادات TypeScript.
 - **Excluded folders**: مجلدات مستبعدة من الفحص، مفصولة بفواصل. الافتراضي يشمل `node_modules` و`dist` و`build` وغيرها.
@@ -178,7 +178,7 @@ build/distributions/VueRoutes-1.2.2.zip
 examples/vue-routes-demo/
 ```
 
-افتح هذا المجلد كمشروع مستقل في WebStorm ثم شغّل نافذة **Vue Routes**.
+افتح هذا المجلد كمشروع مستقل في WebStorm ثم شغّل نافذة **Vue Routes List**.
 
 ### بنية المشروع
 

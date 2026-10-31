@@ -1,6 +1,6 @@
-# Vue Routes Demo
+# Vue Routes List Demo
 
-مشروع Vue 3 + Vue Router صغير لاختبار إضافة **Vue Routes**.
+مشروع Vue 3 + Vue Router صغير لاختبار إضافة **Vue Routes List**.
 
 ```bash
 npm install
@@ -9,7 +9,7 @@ npm run dev
 
 افتح هذا المجلد كمشروع مستقل في WebStorm، ثم:
 
-**View → Tool Windows → Vue Routes**
+**View → Tool Windows → Vue Routes List**
 
 يحتوي المشروع على:
 

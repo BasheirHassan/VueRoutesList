@@ -26,7 +26,7 @@ class VueRoutesConfigurable : SearchableConfigurable {
 
     override fun getId(): String = "com.veuroutes.settings"
 
-    override fun getDisplayName(): String = "Vue Routes"
+    override fun getDisplayName(): String = "Vue Routes List"
 
     override fun createComponent(): JComponent {
         return panel ?: FormBuilder.createFormBuilder()
@@ -38,7 +38,7 @@ class VueRoutesConfigurable : SearchableConfigurable {
             .addComponent(
                 JBLabel(
                     "<html><body style='width:520px'>" +
-                        "Vue Routes scans JavaScript and TypeScript files for Vue Router arrays. " +
+                        "Vue Routes List scans JavaScript and TypeScript files for Vue Router arrays. " +
                         "Component imports are resolved through tsconfig/jsconfig paths, the " +
                         "conventional <code>@/</code> and <code>~/</code> aliases, and relative paths." +
                         "</body></html>",

@@ -1,11 +1,11 @@
 <idea-plugin>
     <id>com.veuroutes.plugin</id>
-    <name>Vue Routes</name>
-    <vendor>VeuRoutes</vendor>
+    <name>Vue Routes List</name>
+    <vendor>Vue Routes List</vendor>
 
     <description><![CDATA[
     <p>See every Vue Router route in your project at a glance.</p>
-    <p>Vue Routes scans JavaScript and TypeScript router configuration files, composes route arrays
+    <p>Vue Routes List scans JavaScript and TypeScript router configuration files, composes route arrays
     imported from other modules, flattens nested <code>children</code>, resolves lazy imports and
     helper-based components such as <code>pageComponent('Accounts/Index')</code>, and displays the
     result in a searchable tool window. Type or paste a route path
@@ -23,7 +23,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow
-            id="Vue Routes"
+            id="Vue Routes List"
             anchor="right"
             icon="/icons/vueRoutes.svg"
             factoryClass="com.veuroutes.ui.VueRoutesToolWindowFactory"/>

@@ -165,7 +165,7 @@ class VueRoutesService(private val project: Project) : Disposable {
                 error = "Route scan was canceled.",
             )
         } catch (e: Exception) {
-            LOG.warn("Vue Routes scan failed", e)
+            LOG.warn("Vue Routes List scan failed", e)
             Snapshot(
                 durationMs = System.currentTimeMillis() - startedAt,
                 error = e.message ?: e.javaClass.simpleName,
@@ -196,7 +196,7 @@ class VueRoutesService(private val project: Project) : Disposable {
     }
 
     companion object {
-        const val INDEXING_MESSAGE = "Indexing is in progress. Vue Routes will refresh automatically."
+        const val INDEXING_MESSAGE = "Indexing is in progress. Vue Routes List will refresh automatically."
 
         private val LOG = Logger.getInstance(VueRoutesService::class.java)
         private val SCAN_EXTENSIONS = listOf("js", "ts", "mjs", "cjs", "mts", "cts", "jsx", "tsx")

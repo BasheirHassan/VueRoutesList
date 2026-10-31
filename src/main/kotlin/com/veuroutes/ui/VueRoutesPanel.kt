@@ -570,7 +570,7 @@ class VueRoutesPanel(private val project: Project) : JPanel(BorderLayout()), Dis
     }
 
     private inner class SettingsAction : DumbAwareAction(
-        "Vue Routes Settings",
+        "Vue Routes List Settings",
         "Configure scanning and auto-refresh",
         AllIcons.General.GearPlain,
     ) {
