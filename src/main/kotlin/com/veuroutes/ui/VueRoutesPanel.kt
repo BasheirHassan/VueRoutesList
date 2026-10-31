@@ -62,6 +62,7 @@ class VueRoutesPanel(private val project: Project) : JPanel(BorderLayout()), Dis
     private val openRouteAction = OpenRouteAction()
     private val openComponentAction = OpenComponentAction()
     private val openParentComponentAction = OpenParentComponentAction()
+    private val openBaseComponentAction = OpenBaseComponentAction()
     private val copyPathAction = CopyPathAction()
     private val settingsAction = SettingsAction()
 
@@ -321,6 +322,7 @@ class VueRoutesPanel(private val project: Project) : JPanel(BorderLayout()), Dis
             openRouteAction,
             openComponentAction,
             openParentComponentAction,
+            openBaseComponentAction,
             copyPathAction,
         )
         val popup = ActionManager.getInstance().createActionPopupMenu(ActionPlaces.TOOLWINDOW_POPUP, popupGroup)
@@ -439,6 +441,11 @@ class VueRoutesPanel(private val project: Project) : JPanel(BorderLayout()), Dis
         navigate(file, 1, 1)
     }
 
+    private fun openBaseComponent(route: VueRoute) {
+        val file = route.baseComponentFile ?: return
+        navigate(file, 1, 1)
+    }
+
     private fun navigate(file: VirtualFile, line: Int, column: Int) {
         if (!file.isValid) {
             statusLabel.foreground = JBColor.RED
@@ -527,6 +534,22 @@ class VueRoutesPanel(private val project: Project) : JPanel(BorderLayout()), Dis
 
         override fun update(event: AnActionEvent) {
             event.presentation.isEnabled = selectedRoute()?.parentComponentFile != null
+        }
+
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+    }
+
+    private inner class OpenBaseComponentAction : DumbAwareAction(
+        "Open Base Component",
+        "Open the layout component declared by the topmost parent route (the base layout)",
+        AllIcons.Nodes.UpLevel,
+    ) {
+        override fun actionPerformed(event: AnActionEvent) {
+            selectedRoute()?.let { openBaseComponent(it) }
+        }
+
+        override fun update(event: AnActionEvent) {
+            event.presentation.isEnabled = selectedRoute()?.showsBaseComponent == true
         }
 
         override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT

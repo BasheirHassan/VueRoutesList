@@ -22,6 +22,21 @@ data class ParsedRoute(
     val line: Int,
     val column: Int,
     val children: List<ParsedRoute>,
+    val metaLayout: String? = null,
+    /** Absolute path of the module that declared this route, filled in by the scanner. */
+    val origin: String? = null,
+)
+
+/**
+ * The result of parsing one router module.
+ *
+ * [routes] is the navigable entry point of the file (`const routes = [...]`, `export default [...]`,
+ * or the outermost array of a route fragment). [arrays] exposes every top-level array in the file by
+ * variable name so another router file can expand `...importedRoutes`.
+ */
+data class ParsedModule(
+    val routes: List<ParsedRoute>,
+    val arrays: Map<String, List<ParsedRoute>>,
 )
 
 /**
@@ -47,6 +62,13 @@ object RouteParser {
     )
     private val requireRegex = Regex(
         """\brequire\s*\(\s*(?:/\*[\s\S]*?\*/\s*|//[^\n]*\n?\s*)*['"]([^'"]+)['"]""",
+    )
+
+    // `component: pages['./pages/Create.vue']` — a map produced by `import.meta.glob` indexed by a
+    // file key. Keys are always real module paths (with extension) relative to the file that
+    // declared the glob, so they resolve like a relative import.
+    private val globIndexRegex = Regex(
+        """\[\s*['"]([^'"]+\.(?:vue|tsx?|jsx?|mjs|cjs))['"]\s*\]""",
     )
     private val whitespaceRegex = Regex("""\s+""")
 
@@ -78,27 +100,46 @@ object RouteParser {
             source.contains("createWebHistory") ||
             source.contains("createWebHashHistory") ||
             source.contains("VueRouter") ||
+            source.contains("RouteRecordRaw") ||
             source.contains("new Router")
         if (routerMarker) return true
 
         val hasComponent = source.contains("component") || source.contains("redirect")
         val hasRouteContext = source.contains("routes") ||
+            source.contains("Routes") ||
             source.contains("children") ||
             source.contains("export default") ||
             source.contains("defineRoutes")
         return hasComponent && hasRouteContext
     }
 
-    fun parse(source: String): List<ParsedRoute> {
-        if (!looksLikeRouteFile(source)) return emptyList()
+    fun parse(source: String): List<ParsedRoute> = parseModule(source)?.routes ?: emptyList()
+
+    /**
+     * Parses a router file and exposes its named route arrays.
+     *
+     * [externalArrays] resolves a spread of an array that lives in another module, e.g.
+     * `children: [...accountRoutes]`. The provider receives the local identifier used in the file.
+     */
+    fun parseModule(
+        source: String,
+        externalArrays: (String) -> List<ParsedRoute>? = { null },
+    ): ParsedModule? {
+        if (!looksLikeRouteFile(source)) return null
 
         val tokens = Lexer(source).tokenize()
         val localArrays = findArrayVariables(tokens)
-        val routeArrays = findRouteArrayStarts(tokens, localArrays)
-        if (routeArrays.isEmpty()) return emptyList()
+        val context = ParseContext(source, tokens, localArrays, externalArrays)
+        val arrays = LinkedHashMap<String, List<ParsedRoute>>()
+        for ((name, openIndex) in localArrays) {
+            val parsed = parseRouteArray(context, openIndex, HashSet())
+            if (parsed.isNotEmpty()) arrays[name] = parsed
+        }
 
-        val context = ParseContext(source, tokens, localArrays)
-        return routeArrays.flatMap { parseRouteArray(context, it, HashSet()) }
+        val routeArrays = findRouteArrayStarts(tokens, localArrays)
+        val routes = routeArrays.flatMap { parseRouteArray(context, it, HashSet()) }
+        if (routes.isEmpty() && arrays.isEmpty()) return null
+        return ParsedModule(routes, arrays)
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -369,6 +410,7 @@ object RouteParser {
         val source: String,
         val tokens: List<Token>,
         val localArrays: Map<String, Int>,
+        val externalArrays: (String) -> List<ParsedRoute>?,
     )
 
     private fun findArrayVariables(tokens: List<Token>): Map<String, Int> {
@@ -559,6 +601,8 @@ object RouteParser {
                             val array = context.localArrays[spreadTarget.text]
                             if (array != null && array != openIndex) {
                                 routes.addAll(parseRouteArray(context, array, activeArrays))
+                            } else {
+                                context.externalArrays(spreadTarget.text)?.let(routes::addAll)
                             }
                         }
                         i = valueEnd(tokens, i + 1, close).coerceAtLeast(i + 1)
@@ -586,6 +630,7 @@ object RouteParser {
         var redirect: String? = null
         var alias: String? = null
         var metaTitle: String? = null
+        var metaLayout: String? = null
         var component: ParsedComponent? = null
         var children: List<ParsedRoute> = emptyList()
         var pathToken: Token? = null
@@ -638,12 +683,16 @@ object RouteParser {
                     }
                     if (arrayStart != null) {
                         children = parseRouteArray(context, arrayStart, activeArrays)
+                    } else if (valueLimit == valueStart + 1 && tokens[valueStart].kind == TokenKind.IDENT) {
+                        children = context.externalArrays(tokens[valueStart].text).orEmpty()
                     }
                 }
 
                 "meta" -> {
                     if (tokens[valueStart].text == "{") {
-                        metaTitle = parseMetaTitle(context, valueStart)
+                        val meta = parseMeta(context, valueStart)
+                        metaTitle = meta.first
+                        metaLayout = meta.second
                     }
                 }
             }
@@ -671,6 +720,7 @@ object RouteParser {
             line = anchor.line,
             column = anchor.column,
             children = children,
+            metaLayout = metaLayout?.takeIf { it.isNotBlank() },
         )
         return route to (close + 1)
     }
@@ -683,6 +733,7 @@ object RouteParser {
 
         val importMatch = dynamicImportRegex.find(raw) ?: requireRegex.find(raw)
         val importPath = importMatch?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }
+            ?: globIndexRegex.find(raw)?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }
 
         val simpleIdentifier = if (end - start == 1) {
             tokens[start].takeIf { it.kind == TokenKind.IDENT }?.text
@@ -737,9 +788,11 @@ object RouteParser {
         return null
     }
 
-    private fun parseMetaTitle(context: ParseContext, openIndex: Int): String? {
+    private fun parseMeta(context: ParseContext, openIndex: Int): Pair<String?, String?> {
         val tokens = context.tokens
         val close = matchingIndex(tokens, openIndex)
+        var title: String? = null
+        var layout: String? = null
         var i = openIndex + 1
         while (i < close) {
             if (tokens[i].text == "...") {
@@ -747,11 +800,13 @@ object RouteParser {
                 continue
             }
             val key = keyOf(tokens[i])
-            if (key == "title" && tokens.getOrNull(i + 1)?.text == ":") {
+            if ((key == "title" || key == "layout") && tokens.getOrNull(i + 1)?.text == ":") {
                 val valueStart = i + 2
-                if (valueStart >= close) return null
-                return scalar(context, valueStart, valueEnd(tokens, valueStart, close))
-                    ?.takeIf { it.isNotBlank() }
+                if (valueStart < close) {
+                    val value = scalar(context, valueStart, valueEnd(tokens, valueStart, close))
+                        ?.takeIf { it.isNotBlank() }
+                    if (key == "title") title = value else layout = value
+                }
             }
             i = if (tokens.getOrNull(i + 1)?.text == ":") {
                 valueEnd(tokens, i + 2, close).coerceAtLeast(i + 1)
@@ -759,7 +814,7 @@ object RouteParser {
                 i + 1
             }
         }
-        return null
+        return title to layout
     }
 
     // ---------------------------------------------------------------------------------------------

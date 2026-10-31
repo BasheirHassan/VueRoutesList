@@ -293,6 +293,36 @@ class RouteParserTest {
     }
 
     @Test
+    fun `extracts the file key from an import meta glob map`() {
+        val source = """
+            const pages = import.meta.glob('./pages/**/*.vue')
+
+            const routes = [
+              {
+                path: '/branches/create',
+                name: 'branches.create',
+                component: pages['./pages/branches/create.vue'],
+              },
+              {
+                path: '/printers',
+                component: import.meta.glob('../views/*.vue')['../views/Printers.vue'],
+              },
+            ]
+
+            export default createRouter({ routes })
+        """.trimIndent()
+
+        val routes = RouteParser.parse(source)
+
+        assertEquals(2, routes.size)
+        assertEquals("/branches/create", routes[0].path)
+        assertEquals("branches.create", routes[0].name)
+        assertNull(routes[0].component?.identifier)
+        assertEquals("./pages/branches/create.vue", routes[0].component?.importPath)
+        assertEquals("../views/Printers.vue", routes[1].component?.importPath)
+    }
+
+    @Test
     fun `uses the path token position for navigation`() {
         val source = """
             const routes = [
@@ -307,5 +337,81 @@ class RouteParserTest {
         val route = RouteParser.parse(source).single()
         assertNotNull(route.component)
         assertEquals(4, route.line)
+    }
+
+    @Test
+    fun `expands route arrays imported from another module`() {
+        val fragment = """
+            export const adminRoutes: RouteRecordRaw[] = [
+              { path: 'users', component: UsersPage },
+              { path: 'roles', component: RolesPage },
+            ]
+        """.trimIndent()
+        val fragmentModule = RouteParser.parseModule(fragment)
+        assertNotNull(fragmentModule)
+        assertEquals(listOf("users", "roles"), fragmentModule!!.arrays["adminRoutes"]?.map { it.path })
+
+        val index = """
+            import { adminRoutes } from './admin'
+            const routes: RouteRecordRaw[] = [
+              {
+                path: '/dashboard',
+                component: DashboardLayout,
+                children: [...adminRoutes],
+              },
+            ]
+        """.trimIndent()
+
+        val module = RouteParser.parseModule(index) { name ->
+            if (name == "adminRoutes") fragmentModule.arrays["adminRoutes"] else null
+        }
+
+        assertNotNull(module)
+        val dashboard = module!!.routes.single()
+        assertEquals("/dashboard", dashboard.path)
+        assertEquals(listOf("users", "roles"), dashboard.children.map { it.path })
+    }
+
+    @Test
+    fun `expands a children array imported from another module`() {
+        val imported = listOf(
+            ParsedRoute(
+                path = "settings",
+                name = null,
+                component = null,
+                redirect = null,
+                alias = null,
+                metaTitle = null,
+                line = 1,
+                column = 1,
+                children = emptyList(),
+            ),
+        )
+        val source = """
+            import { settingsRoutes } from './settings'
+            const routes = [
+              { path: '/account', component: AccountLayout, children: settingsRoutes },
+            ]
+        """.trimIndent()
+
+        val route = RouteParser.parseModule(source) { name ->
+            if (name == "settingsRoutes") imported else null
+        }?.routes?.single()
+
+        assertNotNull(route)
+        assertEquals(listOf("settings"), route!!.children.map { it.path })
+    }
+
+    @Test
+    fun `reads the layout name from route meta`() {
+        val source = """
+            const routes = [
+              { path: '/login', name: 'login', component: LoginView, meta: { title: 'Sign in', layout: 'guest' } },
+            ]
+        """.trimIndent()
+
+        val route = RouteParser.parse(source).single()
+        assertEquals("Sign in", route.metaTitle)
+        assertEquals("guest", route.metaLayout)
     }
 }

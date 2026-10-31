@@ -5,12 +5,15 @@
 
     <description><![CDATA[
     <p>See every Vue Router route in your project at a glance.</p>
-    <p>Vue Routes scans JavaScript and TypeScript router configuration files, flattens nested
-    <code>children</code>, resolves lazy component imports, and displays the result in a searchable
-    tool window. Type or paste a route path (<code>/dashboard/employees</code>), a full URL, a route
-    name, or a component name; results are ranked by relevance, with exact paths first. Double-click
-    a route to jump to its definition, or open its Vue component directly. Right-click a route to
-    open the layout component declared by its closest parent route.</p>
+    <p>Vue Routes scans JavaScript and TypeScript router configuration files, composes route arrays
+    imported from other modules, flattens nested <code>children</code>, resolves lazy imports and
+    helper-based components such as <code>pageComponent('Accounts/Index')</code>, and displays the
+    result in a searchable tool window. Type or paste a route path
+    (<code>/dashboard/employees</code>), a full URL, a route name, or a component name; results are
+    ranked by relevance, with exact paths first. Double-click a route to jump to its definition, or
+    open its Vue component directly. Right-click a route to open the layout component declared by
+    its closest parent route, or the base layout declared by the topmost parent route (including a
+    <code>meta.layout</code> fallback such as <code>GuestLayout.vue</code>).</p>
     <p>Supports Vue Router 4 (<code>createRouter</code>), Vue Router 3 (<code>new VueRouter</code>),
     typed <code>RouteRecordRaw[]</code> arrays, named and lazy component imports, tsconfig/jsconfig
     path aliases, and the conventional <code>@/</code> and <code>~/</code> aliases.</p>

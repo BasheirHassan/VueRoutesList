@@ -21,7 +21,8 @@
 - البحث يفهم معاملات المسار مثل `:id` و`:pathMatch(.*)*` وروابط hash.
 - النقر المزدوج على أي مسار يفتح تعريفه مباشرة في ملف الـ router.
 - النقر المزدوج على عمود **Component** يفتح ملف مكوّن Vue.
-- قائمة سياق: فتح تعريف المسار، فتح المكوّن، فتح مكوّن المسار الأب (Layout)، نسخ المسار.
+- قائمة سياق: فتح تعريف المسار، فتح المكوّن، فتح مكوّن المسار الأب (Layout)، فتح المكوّن الأساسي (أبعد Layout في سلسلة التعشيش)، نسخ المسار.
+- التنقل إلى المكوّن الأب/الأساسي يعمل أيضًا عندما يكون المكوّن مغلّفًا بدالة مساعدة مثل `pageComponent('Accounts/Index')`.
 - التحديث التلقائي عند حفظ أو تعديل ملفات التوجيه، أو إضافة/حذف مكوّنات Vue، أو تغيير `tsconfig`/`jsconfig` (قابل للإيقاف من الإعدادات).
 - زر Refresh لإعادة الفحص يدويًا.
 - دعم:
@@ -30,13 +31,30 @@
   - تعريفات `routes` المكتوبة بـ TypeScript (`RouteRecordRaw[]`)
   - `children` المتداخلة
   - `() => import('...')` و`defineAsyncComponent`
+  - خرائط `import.meta.glob` (مثل `component: pages['./pages/Create.vue']`)
   - `components: { default: ... }`
   - `redirect` و`alias` (نص أو مصفوفة)
-  - اختصارات `@/` و`~/` و`paths` من `tsconfig.json` / `jsconfig.json`
+  - `component: pageComponent('Accounts/Index')` والدوال المساعدة التي تعيد مكوّنًا
+  - اختصارات `@/` و`~/` و`paths` من كل ملفات `tsconfig*.json` / `jsconfig*.json` في الجذر
   - ملفات تصدّر مصفوفة مسارات مباشرة (`export default [...]`)
-  - المصفوفات المدمجة عبر `...publicRoutes` داخل نفس الملف
+  - المصفوفات المدمجة عبر `...publicRoutes` داخل نفس الملف أو من ملف آخر (`...accountsRoutes`)
   - تمرير المصفوفة بالاسم إلى `createRouter({ routes: appRoutes })`
-  - مصفوفة `children` المخزّنة في متغير داخل نفس الملف
+  - مصفوفة `children` المخزّنة في متغير داخل نفس الملف أو مستوردة من ملف آخر
+  - `meta.layout` للعثور على `GuestLayout.vue` وأمثاله عند غياب Layout داخل شجرة المسارات
+
+---
+
+## المكوّن الأب والمكوّن الأساسي
+
+عند الضغط بزر الماوس الأيمن على صف:
+
+| العنصر | ما يفتحه |
+|---|---|
+| **Open Component** | مكوّن الصف نفسه (`component`) |
+| **Open Parent Component** | مكوّن أقرب مسار أب يملك مكوّنًا، مثل `RouterPassthrough.vue` أو `AdminLayout.vue` |
+| **Open Base Component** | أعلى مكوّن/تخطيط في سلسلة التعشيش، ويظهر فقط عندما يختلف عن المكوّن الأب |
+
+يُعطَّل العنصر عندما لا يوجد ملف مطابق. أما صفوف المجموعات التي لا تملك `component` فسيبقى **Open Parent Component** و**Open Base Component** مفعّلين إن كان للمسار الأب مكوّن.
 
 ---
 
@@ -86,7 +104,7 @@
 - ملف التثبيت الناتج:
 
 ```
-build/distributions/VueRoutes-1.2.0.zip
+build/distributions/VueRoutes-1.2.2.zip
 ```
 
 ### 2. تثبيت الملف في WebStorm
@@ -94,7 +112,7 @@ build/distributions/VueRoutes-1.2.0.zip
 1. افتح **Settings / Preferences → Plugins**.
 2. اضغط علامة الترس ⚙ بجانب **Installed**.
 3. اختر **Install Plugin from Disk...**.
-4. اختر ملف `VueRoutes-1.2.0.zip`.
+4. اختر ملف `VueRoutes-1.2.2.zip`.
 5. أعد تشغيل WebStorm.
 
 ### 3. الاستخدام
@@ -117,6 +135,7 @@ build/distributions/VueRoutes-1.2.0.zip
 | فتح تعريف المسار | نقر مزدوج على الصف أو `Enter` |
 | فتح المكوّن | نقر مزدوج على عمود Component أو `Shift+Enter` |
 | فتح مكوّن المسار الأب (Layout) | زر الماوس الأيمن → **Open Parent Component** |
+| فتح المكوّن الأساسي (أبعد Layout في السلسلة) | زر الماوس الأيمن → **Open Base Component** |
 | نسخ المسار | قائمة السياق → Copy Route Path |
 | إعادة الفحص | زر Refresh في شريط الأدوات |
 
@@ -173,8 +192,11 @@ src/main/kotlin/com/veuroutes/
 │   └── ImportCollector.kt         # ربط أسماء المكوّنات بمسارات الاستيراد
 ├── search/RouteSearch.kt          # البحث الذكي وترتيب النتائج حسب الصلة
 ├── scan/
-│   ├── VueRoutesScanner.kt        # مسح المشروع وبناء قائمة المسارات
-│   └── AliasResolver.kt           # حل @/ و~/ وtsconfig paths
+│   ├── VueRoutesScanner.kt        # مسح المشروع وتجميع المسارات بين الملفات
+│   ├── AliasResolver.kt           # حل @/ و~/ وtsconfig paths
+│   ├── TsConfigLoader.kt          # قراءة tsconfig*.json / jsconfig*.json وextends
+│   ├── ComponentResolver.kt       # حل مكوّنات import وhelper calls وmeta.layout
+│   └── ComponentHints.kt          # قواعد أسماء ملفات المكوّنات (قابلة للاختبار)
 ├── service/VueRoutesService.kt    # التخزين المؤقت، الخلفية، والتحديث التلقائي
 ├── settings/                       # إعدادات الإضافة وواجهتها
 └── ui/                             # نافذة الأداة، الجدول، وأدوات التنقل
@@ -195,9 +217,9 @@ src/main/kotlin/com/veuroutes/
 ## القيود المعروفة
 
 - المسارات المبنية ديناميكيًا في وقت التشغيل (دوال تُرجع مصفوفة، أو بيانات من API) لا يمكن استخراجها.
-- مصفوفات المسارات المستوردة من ملف آخر ثم دمجها بـ `...routes` لا تُتبَّع تلقائيًا بين الملفات (يتم دعم المتغيرات في نفس الملف).
-- في المشاريع متعددة الحزم (monorepo) تُقرأ `tsconfig.json` / `jsconfig.json` من جذر المشروع فقط؛ اختصارات الحزمة الفرعية قد لا تُحل إلى ملفات، ويظل اسم الاستيراد ظاهرًا في الجدول.
-- اختصارات Vite/Custom aliases غير الموجودة في `tsconfig.json` قد لا تُحل إلى ملفات؛ يظل اسم الاستيراد ظاهرًا في الجدول.
+- يُدمج الملف المستورد عندما يُصدَّر منه متغير واضح ويُستخدم بـ `...name`؛ أما بناء المسارات بدوال مثل `createRoutes()` فلا يُنفَّذ.
+- في المشاريع متعددة الحزم (monorepo) تُقرأ ملفات `tsconfig*.json` / `jsconfig*.json` من جذر المشروع فقط؛ اختصارات الحزمة الفرعية قد لا تُحل إلى ملفات، ويظل اسم الاستيراد ظاهرًا في الجدول.
+- اختصارات Vite/Custom aliases غير الموجودة في `tsconfig` قد لا تُحل إلى ملفات؛ في هذه الحالة يحاول حل المكوّنات مطابقة المسار داخل مجلدات `Pages` و`Views` و`Layouts` و`Components`.
 - يعتمد اكتشاف ملفات التوجيه على محتوى الملف؛ قد تظهر مصفوفة أخرى تشبه كائنات المسارات (`path` + `component`) كمسارات.
 - التوجيه المعتمد على نظام الملفات (مثل `unplugin-vue-router` أو Nuxt pages) غير مدعوم حتى الآن؛ الإضافة تستهدف ملفات إعداد `vue-router`.
 

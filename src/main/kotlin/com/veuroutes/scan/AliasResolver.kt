@@ -20,25 +20,13 @@ import java.io.File
  */
 class AliasResolver(private val project: Project) {
 
-    private data class AliasRule(
-        val prefix: String,
-        val suffix: String,
-        val targetTemplate: String,
-        val wildcard: Boolean,
-    )
-
-    private data class Config(
-        val baseUrlDir: File,
-        val rules: List<AliasRule>,
-    )
-
     private val projectFileIndex = ProjectFileIndex.getInstance(project)
     private val baseDir: VirtualFile? = project.baseDir
     private val basePath: String? = baseDir?.path?.replace('\\', '/')
     private val baseDirFile: File? = basePath?.let { File(it) }
 
-    private val configs: List<Config> = loadConfigs()
-    private val aliasRules: List<AliasRule> = buildRules()
+    private val configs: List<TsConfigLoader.Config> = baseDirFile?.let { TsConfigLoader.load(it) }.orEmpty()
+    private val aliasRules: List<TsConfigLoader.AliasRule> = buildRules()
     private val baseUrlDirs: List<File> = configs.map { it.baseUrlDir }.distinct()
 
     private val fileExtensions = listOf(".vue", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs")
@@ -84,7 +72,7 @@ class AliasResolver(private val project: Project) {
         return null
     }
 
-    private fun matchRule(rule: AliasRule, specifier: String): String? {
+    private fun matchRule(rule: TsConfigLoader.AliasRule, specifier: String): String? {
         if (rule.wildcard) {
             if (!specifier.startsWith(rule.prefix) || !specifier.endsWith(rule.suffix)) return null
             if (specifier.length < rule.prefix.length + rule.suffix.length) return null
@@ -137,79 +125,17 @@ class AliasResolver(private val project: Project) {
     private fun isUsable(file: VirtualFile): Boolean =
         file.isValid && !file.isDirectory && projectFileIndex.isInContent(file) && !projectFileIndex.isInLibrary(file)
 
-    private fun loadConfigs(): List<Config> {
-        val root = baseDirFile ?: return emptyList()
-        val configNames = listOf("tsconfig.json", "jsconfig.json", "tsconfig.app.json", "tsconfig.base.json")
-        val result = ArrayList<Config>()
-
-        for (name in configNames) {
-            val configFile = File(root, name)
-            if (!configFile.isFile) continue
-            val text = runCatching { configFile.readText() }.getOrNull() ?: continue
-
-            val baseUrlRaw = Regex("""["']?baseUrl["']?\s*:\s*["']([^"']+)["']""")
-                .find(text)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?: "."
-            val baseUrlDir = File(root, baseUrlRaw).normalize()
-
-            val pathsBlock = Regex("""["']?paths["']?\s*:\s*\{([\s\S]*?)}""")
-                .find(text)
-                ?.groupValues
-                ?.getOrNull(1)
-
-            val rules = ArrayList<AliasRule>()
-            if (pathsBlock != null) {
-                val entryRegex = Regex("""["']([^"']+)["']\s*:\s*\[\s*["']([^"']+)["']""")
-                for (entry in entryRegex.findAll(pathsBlock)) {
-                    val alias = entry.groupValues[1]
-                    val targetRaw = entry.groupValues[2]
-                    val targetFile = if (targetRaw.startsWith("/")) {
-                        File(targetRaw)
-                    } else {
-                        File(baseUrlDir, targetRaw)
-                    }
-                    val target = targetFile.normalize().path.replace('\\', '/')
-                    val star = alias.indexOf('*')
-                    rules.add(
-                        if (star >= 0) {
-                            AliasRule(
-                                prefix = alias.substring(0, star),
-                                suffix = alias.substring(star + 1),
-                                targetTemplate = target,
-                                wildcard = true,
-                            )
-                        } else {
-                            AliasRule(
-                                prefix = alias,
-                                suffix = "",
-                                targetTemplate = target,
-                                wildcard = false,
-                            )
-                        },
-                    )
-                }
-            }
-
-            if (rules.isNotEmpty() || baseUrlRaw != ".") {
-                result.add(Config(baseUrlDir, rules))
-            }
-        }
-        return result
-    }
-
-    private fun buildRules(): List<AliasRule> {
-        val rules = ArrayList<AliasRule>()
+    private fun buildRules(): List<TsConfigLoader.AliasRule> {
+        val rules = ArrayList<TsConfigLoader.AliasRule>()
         configs.forEach { rules.addAll(it.rules) }
 
         val root = basePath
         if (root != null) {
             val src = "$root/src"
-            rules.add(AliasRule("@/", "", "$src/*", true))
-            rules.add(AliasRule("@/", "", "$root/*", true))
-            rules.add(AliasRule("~/", "", "$src/*", true))
-            rules.add(AliasRule("~/", "", "$root/*", true))
+            rules.add(TsConfigLoader.AliasRule("@/", "", "$src/*", true))
+            rules.add(TsConfigLoader.AliasRule("@/", "", "$root/*", true))
+            rules.add(TsConfigLoader.AliasRule("~/", "", "$src/*", true))
+            rules.add(TsConfigLoader.AliasRule("~/", "", "$root/*", true))
         }
 
         return rules.sortedByDescending { it.prefix.length }

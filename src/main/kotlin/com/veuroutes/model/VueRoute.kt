@@ -15,6 +15,8 @@ data class VueRoute(
     val parentComponentLabel: String?,
     val parentComponentFile: VirtualFile?,
     val parentRoutePath: String?,
+    val baseComponentLabel: String?,
+    val baseComponentFile: VirtualFile?,
     override val redirect: String?,
     override val alias: String?,
     override val metaTitle: String?,
@@ -29,6 +31,15 @@ data class VueRoute(
 
     val isRedirectOnly: Boolean
         get() = redirect != null && componentFile == null
+
+    /**
+     * True when a distinct base layout exists above this route. The route's own component and the
+     * closest parent component are already reachable through the other menu items.
+     */
+    val showsBaseComponent: Boolean
+        get() = baseComponentFile != null &&
+            baseComponentFile != componentFile &&
+            baseComponentFile != parentComponentFile
 
     fun tooltipHtml(): String {
         val rows = buildList {
@@ -46,6 +57,9 @@ data class VueRoute(
             if (!parentRoutePath.isNullOrBlank()) {
                 add("Parent route" to parentRoutePath)
             }
+            if (!baseComponentLabel.isNullOrBlank() && baseComponentLabel != parentComponentLabel) {
+                add("Base component" to baseComponentLabel)
+            }
             if (!redirect.isNullOrBlank()) add("Redirect" to redirect)
             if (!alias.isNullOrBlank()) add("Alias" to alias)
             if (!metaTitle.isNullOrBlank()) add("Meta title" to metaTitle)
@@ -58,14 +72,19 @@ data class VueRoute(
                 append("<b>").append(escapeHtml(row.first)).append(":</b> ")
                 append(escapeHtml(row.second))
             }
-            if (hasComponentFile) {
-                append("<br/><br/><i>Double-click the Component column to open it.")
+            val hints = buildList {
+                if (hasComponentFile) add("Double-click the Component column to open it.")
                 if (parentComponentFile != null) {
-                    append(" Right-click the row to open the parent layout component.")
+                    add("Right-click the row to open the parent layout component.")
                 }
+                if (showsBaseComponent) {
+                    add("Right-click the row to open the base layout component.")
+                }
+            }
+            if (hints.isNotEmpty()) {
+                append("<br/><br/><i>")
+                append(hints.joinToString(" "))
                 append("</i>")
-            } else if (parentComponentFile != null) {
-                append("<br/><br/><i>Right-click the row to open the parent layout component.</i>")
             }
             append("</body></html>")
         }
